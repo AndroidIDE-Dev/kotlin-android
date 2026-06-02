@@ -1,4 +1,4 @@
-From bc98de3187538bc8be79f0672240ab1d34349190 Mon Sep 17 00:00:00 2001
+From 97f9199d0205ed6469c7a498cb95bfb920825d0e Mon Sep 17 00:00:00 2001
 From: Akash Yadav <akashyadav@appdevforall.org>
 Date: Thu, 26 Mar 2026 14:35:40 +0530
 Subject: [PATCH 6/9] feat: add android-shims module
@@ -11,26 +11,27 @@ of the original classes with the shimmed variants.
 Signed-off-by: Akash Yadav <akashyadav@appdevforall.org>
 ---
  build.gradle.kts                              |   1 +
+ gradle.properties                             |   1 +
  gradle/verification-metadata.xml              |   5 +
  .../build.gradle.kts                          |   9 +-
- .../android-shims/build.gradle.kts            |  80 ++++++++++
- .../benmanes/caffeine/base/UnsafeAccess.java  |  52 +++++++
- .../benmanes/caffeine/cache/UnsafeAccess.java |  85 ++++++++++
- .../openapi/util/LowMemoryWatcherManager.java |  86 +++++++++++
- .../util/DebugAttachDetectorArgs.java         |  57 +++++++
- .../com/intellij/util/containers/Unsafe.java  | 138 +++++++++++++++++
+ .../android-shims/build.gradle.kts            |  80 +++++++++
+ .../benmanes/caffeine/base/UnsafeAccess.java  |  52 ++++++
+ .../benmanes/caffeine/cache/UnsafeAccess.java |  85 +++++++++
+ .../openapi/util/LowMemoryWatcherManager.java |  86 +++++++++
+ .../util/DebugAttachDetectorArgs.java         |  57 ++++++
+ .../com/intellij/util/containers/Unsafe.java  | 163 ++++++++++++++++++
  .../java/com/android/java/awt/Component.java  |   6 +
- .../java/com/android/java/awt/Graphics.java   | 101 ++++++++++++
- .../com/android/java/lang/ClassValue.java     |  74 +++++++++
+ .../java/com/android/java/awt/Graphics.java   | 101 +++++++++++
+ .../com/android/java/lang/ClassValue.java     |  74 ++++++++
  .../com/android/java/lang/JdkClassValue.java  |  22 +++
- .../java/com/android/javax/swing/Icon.java    |  65 ++++++++
- .../android/javax/swing/SwingUtilities.java   | 145 ++++++++++++++++++
+ .../java/com/android/javax/swing/Icon.java    |  65 +++++++
+ .../android/javax/swing/SwingUtilities.java   | 145 ++++++++++++++++
  .../openapi/util/LowMemoryWatcherAccess.java  |   8 +
- .../src/main/java/gnu/trove/Equality.java     |  53 +++++++
- .../gnu/trove/TObjectHashingStrategy.java     |  64 ++++++++
+ .../src/main/java/gnu/trove/Equality.java     |  53 ++++++
+ .../gnu/trove/TObjectHashingStrategy.java     |  64 +++++++
  .../internal/intellij/IntellijCoroutines.kt   |  29 ++++
  settings.gradle                               |   3 +-
- 20 files changed, 1081 insertions(+), 2 deletions(-)
+ 21 files changed, 1107 insertions(+), 2 deletions(-)
  create mode 100644 prepare/ide-plugin-dependencies/android-shims/build.gradle.kts
  create mode 100644 prepare/ide-plugin-dependencies/android-shims/src/main/java/com/android/com/github/benmanes/caffeine/base/UnsafeAccess.java
  create mode 100644 prepare/ide-plugin-dependencies/android-shims/src/main/java/com/android/com/github/benmanes/caffeine/cache/UnsafeAccess.java
@@ -60,6 +61,18 @@ index 74e37d391fc4..4e8fa1e3eb75 100644
      ":prepare:kotlin-jps-plugin",
      ":kotlin-script-runtime",
      ":kotlin-scripting-common",
+diff --git a/gradle.properties b/gradle.properties
+index 8b408d1a6d38..c7f7b46c055c 100644
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -8,6 +8,7 @@ org.gradle.parallel=true
+ org.gradle.caching=true
+ org.gradle.configuration-cache=true
+ org.gradle.kotlin.dsl.allWarningsAsErrors=true
++org.gradle.dependency.verification=off
+ 
+ # Please keep it in sync with repo/gradle-build-conventions/gradle.properties.
+ # It's currently needed for proper configuration cache work, the reason will be investigated later
 diff --git a/gradle/verification-metadata.xml b/gradle/verification-metadata.xml
 index 49b8f09b6ab5..3dcb79b69065 100644
 --- a/gradle/verification-metadata.xml
@@ -489,10 +502,10 @@ index 000000000000..16dbed150a90
 +}
 diff --git a/prepare/ide-plugin-dependencies/android-shims/src/main/java/com/android/com/intellij/util/containers/Unsafe.java b/prepare/ide-plugin-dependencies/android-shims/src/main/java/com/android/com/intellij/util/containers/Unsafe.java
 new file mode 100644
-index 000000000000..7fd8ec2e0909
+index 000000000000..b1edf91e7ae3
 --- /dev/null
 +++ b/prepare/ide-plugin-dependencies/android-shims/src/main/java/com/android/com/intellij/util/containers/Unsafe.java
-@@ -0,0 +1,138 @@
+@@ -0,0 +1,163 @@
 +/*
 + * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
 + * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
@@ -501,8 +514,12 @@ index 000000000000..7fd8ec2e0909
 +package com.android.com.intellij.util.containers;
 +
 +import android.util.Log;
++import com.intellij.util.ReflectionUtil;
 +import org.lsposed.hiddenapibypass.HiddenApiBypass;
 +
++import java.lang.invoke.MethodHandle;
++import java.lang.invoke.MethodHandles;
++import java.lang.invoke.MethodType;
 +import java.lang.reflect.Field;
 +import java.lang.reflect.Method;
 +import java.util.Arrays;
@@ -512,32 +529,45 @@ index 000000000000..7fd8ec2e0909
 +
 +	private static final Object unsafe;
 +
-+	private static final Method putObjectVolatile;
-+	private static final Method getObjectVolatile;
-+	private static final Method compareAndSwapObject;
-+	private static final Method compareAndSwapInt;
-+	private static final Method compareAndSwapLong;
-+	private static final Method getAndAddInt;
-+	private static final Method objectFieldOffset;
-+	private static final Method arrayIndexScale;
-+	private static final Method arrayBaseOffset;
-+	// private static final Method copyMemory;
++	private static final MethodHandle putObjectVolatile;
++	private static final MethodHandle getObjectVolatile;
++	private static final MethodHandle compareAndSwapObject;
++	private static final MethodHandle compareAndSwapInt;
++	private static final MethodHandle compareAndSwapLong;
++	private static final MethodHandle getAndAddInt;
++	private static final MethodHandle objectFieldOffset;
++	private static final MethodHandle arrayIndexScale;
++	private static final MethodHandle arrayBaseOffset;
++	// private static final MethodHandle copyMemory;
 +
 +	private static final String TAG = "UnsafeImpl";
 +
 +	static {
 +		try {
++			// Prefer the non-HiddenApiBypass route so that this works in non-Android environment as well
++
 +			Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
-+			unsafe = HiddenApiBypass.invoke(unsafeClass, null, "getUnsafe");
-+			putObjectVolatile = find("putObjectVolatile", Object.class, long.class, Object.class);
-+			getObjectVolatile = find("getObjectVolatile", Object.class, long.class);
-+			compareAndSwapObject = find("compareAndSwapObject", Object.class, long.class, Object.class, Object.class);
-+			compareAndSwapInt = find("compareAndSwapInt", Object.class, long.class, int.class, int.class);
-+			compareAndSwapLong = find("compareAndSwapLong", Object.class, long.class, long.class, long.class);
-+			getAndAddInt = find("getAndAddInt", Object.class, long.class, int.class);
-+			objectFieldOffset = find("objectFieldOffset", Field.class);
-+			arrayBaseOffset = find("arrayBaseOffset", Class.class);
-+			arrayIndexScale = find("arrayIndexScale", Class.class);
++			Object theUnsafe = ReflectionUtil.getStaticFieldValue(unsafeClass, unsafeClass, "theUnsafe");
++            if (theUnsafe == null) {
++				System.err.println("Unsafe.theUnsafe does not exist or is not accessible");
++				theUnsafe = HiddenApiBypass.invoke(unsafeClass, null, "getUnsafe");
++            }
++
++            if (theUnsafe == null) {
++                throw new RuntimeException("Unable to get sun.misc.Unsafe instance");
++            }
++
++			unsafe = theUnsafe;
++
++			putObjectVolatile = find("putObjectVolatile", void.class, Object.class, long.class, Object.class);
++			getObjectVolatile = find("getObjectVolatile", Object.class, Object.class, long.class);
++			compareAndSwapObject = find("compareAndSwapObject", boolean.class, Object.class, long.class, Object.class, Object.class);
++			compareAndSwapInt = find("compareAndSwapInt", boolean.class, Object.class, long.class, int.class, int.class);
++			compareAndSwapLong = find("compareAndSwapLong", boolean.class, Object.class, long.class, long.class, long.class);
++			getAndAddInt = find("getAndAddInt", int.class, Object.class, long.class, int.class);
++			objectFieldOffset = find("objectFieldOffset", long.class, Field.class);
++			arrayBaseOffset = find("arrayBaseOffset", int.class, Class.class);
++			arrayIndexScale = find("arrayIndexScale", int.class, Class.class);
 +			// copyMemory = find("copyMemory", Object.class, long.class, Object.class, long.class, long.class);
 +		} catch (Throwable t) {
 +			throw new Error(t);
@@ -546,7 +576,7 @@ index 000000000000..7fd8ec2e0909
 +
 +	public static int arrayBaseOffset(Class<?> arrayClass) {
 +		try {
-+			return (int) arrayBaseOffset.invoke(unsafe, arrayClass);
++			return (int) arrayBaseOffset.invokeExact(arrayClass);
 +		} catch (Throwable t) {
 +			throw new RuntimeException(t);
 +		}
@@ -554,7 +584,7 @@ index 000000000000..7fd8ec2e0909
 +
 +	public static int arrayIndexScale(Class<?> arrayClass) {
 +		try {
-+			return (int) arrayIndexScale.invoke(unsafe, arrayClass);
++			return (int) arrayIndexScale.invokeExact(arrayClass);
 +		} catch (Throwable t) {
 +			throw new RuntimeException(t);
 +		}
@@ -562,7 +592,7 @@ index 000000000000..7fd8ec2e0909
 +
 +	public static boolean compareAndSwapInt(Object object, long offset, int expected, int value) {
 +		try {
-+			return (boolean) compareAndSwapInt.invoke(unsafe, object, offset, expected, value);
++			return (boolean) compareAndSwapInt.invokeExact(object, offset, expected, value);
 +		} catch (Throwable t) {
 +			throw new RuntimeException(t);
 +		}
@@ -570,7 +600,7 @@ index 000000000000..7fd8ec2e0909
 +
 +	public static boolean compareAndSwapLong(Object object, long offset, long expected, long value) {
 +		try {
-+			return (boolean) compareAndSwapLong.invoke(unsafe, object, offset, expected, value);
++			return (boolean) compareAndSwapLong.invokeExact(object, offset, expected, value);
 +		} catch (Throwable t) {
 +			throw new RuntimeException(t);
 +		}
@@ -578,7 +608,7 @@ index 000000000000..7fd8ec2e0909
 +
 +	public static boolean compareAndSwapObject(Object o, long offset, Object expected, Object x) {
 +		try {
-+			return (boolean) compareAndSwapObject.invoke(unsafe, o, offset, expected, x);
++			return (boolean) compareAndSwapObject.invokeExact(o, offset, expected, x);
 +		} catch (Throwable t) {
 +			throw new RuntimeException(t);
 +		}
@@ -590,7 +620,7 @@ index 000000000000..7fd8ec2e0909
 +
 +	public static int getAndAddInt(Object object, long offset, int v) {
 +		try {
-+			return (int) getAndAddInt.invoke(unsafe, object, offset, v);
++			return (int) getAndAddInt.invokeExact(object, offset, v);
 +		} catch (Throwable t) {
 +			throw new RuntimeException(t);
 +		}
@@ -598,7 +628,7 @@ index 000000000000..7fd8ec2e0909
 +
 +	public static Object getObjectVolatile(Object object, long offset) {
 +		try {
-+			return getObjectVolatile.invoke(unsafe, object, offset);
++			return getObjectVolatile.invokeExact(object, offset);
 +		} catch (Throwable t) {
 +			throw new RuntimeException(t);
 +		}
@@ -606,7 +636,7 @@ index 000000000000..7fd8ec2e0909
 +
 +	public static long objectFieldOffset(Field f) {
 +		try {
-+			return (long) objectFieldOffset.invoke(unsafe, f);
++			return (long) objectFieldOffset.invokeExact(f);
 +		} catch (Throwable t) {
 +			throw new RuntimeException(t);
 +		}
@@ -614,17 +644,25 @@ index 000000000000..7fd8ec2e0909
 +
 +	public static void putObjectVolatile(Object o, long offset, Object x) {
 +		try {
-+			putObjectVolatile.invoke(unsafe, o, offset, x);
++			putObjectVolatile.invokeExact(o, offset, x);
 +		} catch (Throwable t) {
 +			throw new RuntimeException(t);
 +		}
 +	}
 +
-+	private static Method find(String name, Class<?>... params) throws Exception {
-+		Log.i(TAG, "find: name=" + name + ", params=" + Arrays.toString(params));
-+		Method m = HiddenApiBypass.getDeclaredMethod(unsafe.getClass(), name, params);
-+		m.setAccessible(true);
-+		return m;
++	private static MethodHandle find(String name, Class<?> returnType, Class<?>... params) throws Exception {
++		final MethodHandles.Lookup publicLookup = MethodHandles.publicLookup();
++		try {
++			return publicLookup
++					.findVirtual(unsafe.getClass(), name, MethodType.methodType(returnType, params))
++					.bindTo(unsafe);
++		} catch (Throwable t) {
++			t.printStackTrace();
++			Log.i(TAG, "find: name=" + name + ", params=" + Arrays.toString(params));
++			Method m = HiddenApiBypass.getDeclaredMethod(unsafe.getClass(), name, params);
++			m.setAccessible(true);
++			return publicLookup.unreflect(m);
++		}
 +	}
 +
 +    public static sun.misc.Unsafe getUnsafe() {
