@@ -1,4 +1,4 @@
-From 8308dadfcc27b643b799076de9acfddca02be2ba Mon Sep 17 00:00:00 2001
+From b184fdea99daeab7cb37e8c0ab090ab5b5b89a2c Mon Sep 17 00:00:00 2001
 From: Akash Yadav <akashyadav@appdevforall.org>
 Date: Thu, 26 Mar 2026 14:33:40 +0530
 Subject: [PATCH 5/9] feat: add analysis-api-standalone-embeddable-for-ide
@@ -12,9 +12,9 @@ Signed-off-by: Akash Yadav <akashyadav@appdevforall.org>
  build.gradle.kts                              |   1 +
  gradle/verification-metadata.xml              |   6 +
  gradle/versions.properties                    |   4 +
- .../build.gradle.kts                          | 110 ++++++++++++++++++
+ .../build.gradle.kts                          | 139 ++++++++++++++++++
  settings.gradle                               |   3 +-
- 5 files changed, 123 insertions(+), 1 deletion(-)
+ 5 files changed, 152 insertions(+), 1 deletion(-)
  create mode 100644 prepare/ide-plugin-dependencies/analysis-api-standalone-embeddable-for-ide/build.gradle.kts
 
 diff --git a/build.gradle.kts b/build.gradle.kts
@@ -60,10 +60,10 @@ index 903ff4bcfd46..4ea88f7b8eae 100644
 \ No newline at end of file
 diff --git a/prepare/ide-plugin-dependencies/analysis-api-standalone-embeddable-for-ide/build.gradle.kts b/prepare/ide-plugin-dependencies/analysis-api-standalone-embeddable-for-ide/build.gradle.kts
 new file mode 100644
-index 000000000000..a1dffb3abc9f
+index 000000000000..619ed70edccb
 --- /dev/null
 +++ b/prepare/ide-plugin-dependencies/analysis-api-standalone-embeddable-for-ide/build.gradle.kts
-@@ -0,0 +1,110 @@
+@@ -0,0 +1,139 @@
 +import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 +
 +plugins {
@@ -122,6 +122,32 @@ index 000000000000..a1dffb3abc9f
 +    "com.intellij.util.DebugAttachDetectorArgs" to "com.android.",
 +)
 +
++// Non-JVM compiler backends (Kotlin/JS, Kotlin/Native, Kotlin/Wasm) have no place
++// in an Android analysis runtime; they exist only to target those platforms. Strip
++// their classes and .kotlin_module metadata from the embeddable JAR (ADFA-4636).
++val nonJvmBackendPackages = listOf(
++    // Kotlin/JS
++    "org/jetbrains/kotlin/js/",
++    "org/jetbrains/kotlin/ir/backend/js/",
++    // Kotlin/Native (konan)
++    "org/jetbrains/kotlin/konan/",
++    "org/jetbrains/kotlin/backend/konan/",
++    "org/jetbrains/kotlin/ir/objcinterop/",
++    // Kotlin/Wasm
++    "org/jetbrains/kotlin/wasm/",
++)
++
++val nonJvmBackendModules = listOf(
++    // Kotlin/JS
++    "checkers.js", "compiler.common.js", "ir.serialization.js",
++    "js.ast", "js.config", "js.frontend.common", "js.frontend", "js.parser", "js.serializer",
++    // Kotlin/Native
++    "checkers.native", "compiler.common.native", "decompiler-native", "fir-native",
++    "frontend.native", "ir.serialization.native", "ir.objcinterop", "kotlin-native-utils",
++    // Kotlin/Wasm
++    "checkers.wasm", "compiler.common.wasm", "wasm.config", "wasm.frontend",
++)
++
 +val classesToReplace = mapOf(
 +    "com.github.benmanes.caffeine.base.UnsafeAccess" to "com.android.",
 +    "com.github.benmanes.caffeine.cache.UnsafeAccess" to "com.android.",
@@ -168,6 +194,9 @@ index 000000000000..a1dffb3abc9f
 +    exclude("org/intellij/lang/annotations/**")
 +    exclude("com/sun/jna/**")
 +    exclude("org/jetbrains/annotations/**")
++
++    nonJvmBackendPackages.forEach { exclude("$it**") }
++    nonJvmBackendModules.forEach { exclude("META-INF/$it.kotlin_module") }
 +
 +    // Code On the Go relocates java.xml to jaxp.xml
 +    relocate("javax.xml", "jaxp.xml")

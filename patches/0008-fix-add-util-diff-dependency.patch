@@ -1,4 +1,4 @@
-From f1f6c56a1d312ccbbf763eabeaeed302ee77ec4c Mon Sep 17 00:00:00 2001
+From fab5c00072d482253d8540d5ed73836e38f95942 Mon Sep 17 00:00:00 2001
 From: Akash Yadav <akashyadav@appdevforall.org>
 Date: Tue, 14 Apr 2026 01:04:17 +0530
 Subject: [PATCH 8/9] fix: add util-diff dependency
@@ -9,7 +9,7 @@ Signed-off-by: Akash Yadav <akashyadav@appdevforall.org>
  1 file changed, 1 insertion(+)
 
 diff --git a/prepare/ide-plugin-dependencies/analysis-api-standalone-embeddable-for-ide/build.gradle.kts b/prepare/ide-plugin-dependencies/analysis-api-standalone-embeddable-for-ide/build.gradle.kts
-index 39dd3ce31271..cbfb060b1cd2 100644
+index 34c935a8e9c9..7590a5aebf7d 100644
 --- a/prepare/ide-plugin-dependencies/analysis-api-standalone-embeddable-for-ide/build.gradle.kts
 +++ b/prepare/ide-plugin-dependencies/analysis-api-standalone-embeddable-for-ide/build.gradle.kts
 @@ -27,6 +27,7 @@ dependencies {

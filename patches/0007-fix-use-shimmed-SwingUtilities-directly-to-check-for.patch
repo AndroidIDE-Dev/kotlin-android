@@ -1,4 +1,4 @@
-From f5ff7bafe5b0e7b05035187934f47f2b451c0f1a Mon Sep 17 00:00:00 2001
+From f2ca7bf7378d8e9e27bcce9809167a971fa8d9de Mon Sep 17 00:00:00 2001
 From: Akash Yadav <akashyadav@appdevforall.org>
 Date: Thu, 26 Mar 2026 14:37:27 +0530
 Subject: [PATCH 7/9] fix: use shimmed SwingUtilities directly to check for
