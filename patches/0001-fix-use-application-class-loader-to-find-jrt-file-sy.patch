@@ -1,20 +1,20 @@
-From 854499acfc4dc309d4ff80962eb7d7d909fac899 Mon Sep 17 00:00:00 2001
-From: Wadamzmail <alksndrmetwakil@gmail.com>
+From a20de7ca03c18f2ff8eb79380181133d349c80ed Mon Sep 17 00:00:00 2001
+From: Akash Yadav <akashyadav@appdevforall.org>
 Date: Sat, 25 Jul 2026 17:06:11 +0200
-Subject: [PATCH 1/9] fix: use application class loader to find jrt:/ file
- system
+Subject: [PATCH 1/9] fix: use application class loader to find jrt:/ file  system
 
 The JRT file system is not available on Android. It needs to be part of the application.
 To ensure Kotlin's CoreJrtFileSystem can find the jrt:/ file system, we need to make it
 use the application class loader. This makes it possible for the consuming application
 to provide its own implementation of the jrt:/ file system (as we do in Code On the Go).
 
+Co-authored-by: Wadamzmail <alksndrmetwakil@gmail.com>
 ---
- .../cli/jvm/modules/CoreJrtFileSystem.kt      | 31 ++++++++-----------
- 1 file changed, 13 insertions(+), 18 deletions(-)
+ .../cli/jvm/modules/CoreJrtFileSystem.kt      | 30 ++++++++-----------
+ 1 file changed, 12 insertions(+), 18 deletions(-)
 
 diff --git a/compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/modules/CoreJrtFileSystem.kt b/compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/modules/CoreJrtFileSystem.kt
-index 335a4db..e075e42 100644
+index 335a4db..3e07be2 100644
 --- a/compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/modules/CoreJrtFileSystem.kt
 +++ b/compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/modules/CoreJrtFileSystem.kt
 @@ -23,7 +23,6 @@ import com.intellij.util.containers.ConcurrentFactoryMap
@@ -25,12 +25,11 @@ index 335a4db..e075e42 100644
  import java.nio.file.FileSystem
  import java.nio.file.FileSystems
  
-@@ -73,24 +72,20 @@ class CoreJrtFileSystem : DeprecatedVirtualFileSystem() {
+@@ -73,24 +72,19 @@ class CoreJrtFileSystem : DeprecatedVirtualFileSystem() {
  
          private val globalJrtFsCache = ConcurrentFactoryMap.createMap<String, FileSystem?> { jdkHomePath ->
              val jdkHome = File(jdkHomePath)
 -            val jrtFsJar = loadJrtFsJar(jdkHome) ?: return@createMap null
-+            loadJrtFsJar(jdkHome) ?: return@createMap null
              val rootUri = URI.create(StandardFileSystems.JRT_PROTOCOL + ":/")
 +
              /*
