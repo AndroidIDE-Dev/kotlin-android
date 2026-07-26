@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - '**'
+  pull_request:
+    branches:
+      - '**'
   workflow_dispatch: {}
 
 concurrency:
@@ -88,7 +91,10 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: >
+      github.event_name == 'push' &&
+      github.repository == 'appdevforall/kotlin-android' &&
+      github.ref == 'refs/heads/main'
 
     steps:
       - name: Download artifact
