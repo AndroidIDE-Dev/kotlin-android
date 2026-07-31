@@ -1,4 +1,4 @@
-From f3f37dd26a82b0c265c9b13db64f1fdb98f08892 Mon Sep 17 00:00:00 2001
+From 789d56ec898ed1c2623435421641a45f83e584b0 Mon Sep 17 00:00:00 2001
 From: Akash Yadav <akashyadav@appdevforall.org>
 Date: Thu, 26 Mar 2026 14:22:09 +0530
 Subject: [PATCH 3/9] fix: add ability to provide custom CompilerConfiguration

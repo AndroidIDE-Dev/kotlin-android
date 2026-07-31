@@ -1,4 +1,4 @@
-From 6f5f186a640e0d4ef0bff4d18dbb36f969dc5b16 Mon Sep 17 00:00:00 2001
+From 64b33dba002ec2b661f1e7cc8a1a6a1667e751d8 Mon Sep 17 00:00:00 2001
 From: Akash Yadav <akashyadav@appdevforall.org>
 Date: Thu, 26 Mar 2026 14:12:33 +0530
 Subject: [PATCH 1/9] fix: use application class loader to find jrt:/ file
@@ -9,24 +9,54 @@ To ensure Kotlin's CoreJrtFileSystem can find the jrt:/ file system, we need to 
 use the application class loader. This makes it possible for the consuming application
 to provide its own implementation of the jrt:/ file system (as we do in Code On the Go).
 
+The isAtLeastJava9() branch is removed rather than kept: androidJavaVersion() reports
+Java 8 for SDK_INT < 31, so on API <= 30 the old code took the URLClassLoader(jrt-fs.jar)
+fallback, which cannot work on ART and broke LSP initialization. With the provider always
+resolved from the application class loader there is no version-dependent path left.
+
+The jrt-fs.jar existence check in globalJrtFsCache goes away with it. The bundled JDK home
+always contains lib/jrt-fs.jar, so the check never failed, and isModularJdk() still guards
+JDK root configuration in jvmArguments.kt and JvmContentRoots.kt.
+
+See https://github.com/appdevforall/CodeOnTheGo/issues/1334
+
+Co-authored-by: Wadamzmail <alksndrmetwakil@gmail.com>
 Signed-off-by: Akash Yadav <akashyadav@appdevforall.org>
 ---
- .../org/jetbrains/kotlin/cli/jvm/modules/CoreJrtFileSystem.kt   | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ .../jetbrains/kotlin/cli/jvm/modules/CoreJrtFileSystem.kt  | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
 diff --git a/compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/modules/CoreJrtFileSystem.kt b/compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/modules/CoreJrtFileSystem.kt
-index 335a4db84c47..c399ca5bca10 100644
+index 335a4db84c47..566e30e2b793 100644
 --- a/compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/modules/CoreJrtFileSystem.kt
 +++ b/compiler/cli/cli-base/src/org/jetbrains/kotlin/cli/jvm/modules/CoreJrtFileSystem.kt
-@@ -83,7 +83,7 @@ class CoreJrtFileSystem : DeprecatedVirtualFileSystem() {
-             if (isAtLeastJava9()) {
+@@ -73,14 +73,14 @@ class CoreJrtFileSystem : DeprecatedVirtualFileSystem() {
+ 
+         private val globalJrtFsCache = ConcurrentFactoryMap.createMap<String, FileSystem?> { jdkHomePath ->
+             val jdkHome = File(jdkHomePath)
+-            val jrtFsJar = loadJrtFsJar(jdkHome) ?: return@createMap null
++            /*val jrtFsJar = loadJrtFsJar(jdkHome) ?: return@createMap null*/
+             val rootUri = URI.create(StandardFileSystems.JRT_PROTOCOL + ":/")
+             /*
+               The ClassLoader, that was used to load JRT FS Provider actually lives as long as current thread due to ThreadLocal leak in jrt-fs,
+               See https://bugs.openjdk.java.net/browse/JDK-8260621
+               So that cache allows us to avoid creating too many classloaders for same JDK and reduce severity of that leak
+             */
+-            if (isAtLeastJava9()) {
++            /*if (isAtLeastJava9()) {
                  // If the runtime JDK is set to 9+ it has JrtFileSystemProvider,
                  // but to load proper jrt-fs (one that is pointed by jdkHome) we should provide "java.home" path
--                FileSystems.newFileSystem(rootUri, mapOf("java.home" to jdkHome.absolutePath))
-+                FileSystems.newFileSystem(rootUri, mapOf("java.home" to jdkHome.absolutePath), CoreJrtFileSystem::class.java.classLoader)
-             } else {
-                 val classLoader = URLClassLoader(arrayOf(jrtFsJar.toURI().toURL()), null)
-                 // If the runtime JDK is set to <9, there are no JrtFileSystemProvider,
+                 FileSystems.newFileSystem(rootUri, mapOf("java.home" to jdkHome.absolutePath))
+@@ -90,7 +90,8 @@ class CoreJrtFileSystem : DeprecatedVirtualFileSystem() {
+                 // we should create classloader with jrt-fs.jar, and DO NOT NEED to pass "java.home" path,
+                 // as otherwise it will incur additional classloader creation
+                 FileSystems.newFileSystem(rootUri, emptyMap<String, Nothing>(), classLoader)
+-            }
++            }*/
++            FileSystems.newFileSystem(rootUri, mapOf("java.home" to jdkHome.absolutePath), CoreJrtFileSystem::class.java.classLoader)
+         }
+     }
+ }
 -- 
 2.54.0
 

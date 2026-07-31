@@ -1,4 +1,4 @@
-From d3715a01087dc1113ff2c5d5df399e988145db72 Mon Sep 17 00:00:00 2001
+From 1734cc9ecaa31efa22cfc7256325b823443cbfb3 Mon Sep 17 00:00:00 2001
 From: Akash Yadav <akashyadav@appdevforall.org>
 Date: Mon, 4 May 2026 14:24:33 +0530
 Subject: [PATCH 9/9] fix: make KaResolutionProvider and impl inheritable

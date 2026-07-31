@@ -1,4 +1,4 @@
-From b184fdea99daeab7cb37e8c0ab090ab5b5b89a2c Mon Sep 17 00:00:00 2001
+From 666aeba80a3d7878978015e65b0b52e29fe0684d Mon Sep 17 00:00:00 2001
 From: Akash Yadav <akashyadav@appdevforall.org>
 Date: Thu, 26 Mar 2026 14:33:40 +0530
 Subject: [PATCH 5/9] feat: add analysis-api-standalone-embeddable-for-ide
